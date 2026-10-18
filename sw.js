@@ -1,7 +1,7 @@
 // Service worker: guarda la "cáscara" de la app para que abra rápido.
 // Los datos siempre se piden en línea (hay buena señal en obra).
-const CACHE = 'obra-va-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './img/logo-horizontal.png', './img/icon-192.png'];
+const CACHE = 'obra-va-v2';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './img/logo-horizontal.png', './img/icon-192.png', './app.js', './app.css', './config.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
