@@ -647,11 +647,13 @@ VISTAS.gasto = async () => {
   const opt = arr => arr.map(o => `<option value="${esc(o)}">`).join('');
   const h = `
     <div class="card">
-      <div class="fld"><label>¿De qué proyecto?</label><input class="inp" id="ob" list="l-ob" placeholder="Escoge o escribe uno nuevo"><datalist id="l-ob">${opt(C.obras)}</datalist></div>
+      <div class="fld"><label>Proyecto</label><select class="inp" id="obs"><option value="">Escoge…</option>${C.obras.map(o => `<option>${esc(o)}</option>`).join('')}<option value="__n">＋ Proyecto nuevo…</option></select>
+        <input class="inp hidden" id="ob" placeholder="Nombre del proyecto nuevo" style="margin-top:8px"></div>
       <div class="fld"><label>Categoría</label><select class="inp" id="ca"><option value="">Escoge…</option>${C.categorias.map(c => `<option>${esc(c)}</option>`).join('')}</select></div>
       <div class="fld"><label>Concepto (qué se pagó, 3 a 8 palabras)</label><input class="inp" id="co" placeholder="Ej. Instalación de reloj checador"></div>
-      <div class="fld"><label>¿A quién se le pagó?</label><input class="inp" id="pe" list="l-pe" placeholder="Nombre"><datalist id="l-pe">${opt(C.personas)}</datalist></div>
-      <div class="fld"><label>Monto</label><input class="inp money" id="mo" inputmode="decimal" placeholder="$0.00"></div>
+      <div class="fld"><label>¿A quién se le pagó?</label><select class="inp" id="pes"><option value="">Escoge…</option>${C.personas.map(o => `<option>${esc(o)}</option>`).join('')}<option value="__n">＋ Persona nueva…</option></select>
+        <input class="inp hidden" id="pe" placeholder="Nombre completo de la persona nueva" style="margin-top:8px"></div>
+      <div class="fld"><label>Monto neto pagado</label><input class="inp money" id="mo" inputmode="decimal" placeholder="$0.00"></div>
       <div class="fld"><label>Forma</label><div class="seg" id="fm"><button data-f="Efectivo" class="on">Efectivo</button><button data-f="Facturado">Facturado</button></div></div>
       <div class="fld"><label>Fecha del pago</label><input class="inp" id="fe" type="date" value="${iso}" max="${iso}"></div>
       <div class="fld"><label>Foto del recibo, ticket o transferencia</label><button class="btn sec full fotobtn" id="ft">📷 Tomar foto</button></div>
@@ -665,19 +667,23 @@ VISTAS.gasto = async () => {
   document.querySelectorAll('#fm button').forEach(b => b.onclick = () => { forma = b.dataset.f; document.querySelectorAll('#fm button').forEach(x => x.classList.toggle('on', x === b)); });
   const lim = () => { const v = Number($('mo').value.replace(/[$,\s]/g, '')) || 0; $('lim').innerHTML = v > C.limite && S.yo.rol !== 'director' ? `⏳ Más de ${mxn0(C.limite)}: quedará esperando la aprobación de Fernando antes de pagarse.` : ''; };
   $('mo').oninput = lim;
+  const otro = (selId, inpId) => { $(selId).onchange = () => { const n = $(selId).value === '__n'; $(inpId).classList.toggle('hidden', !n); if (n) $(inpId).focus(); }; };
+  otro('obs', 'ob'); otro('pes', 'pe');
+  const val = (selId, inpId) => $(selId).value === '__n' ? $(inpId).value.trim() : $(selId).value;
   $('gu').onclick = async () => {
-    const d = { obra: $('ob').value.trim(), categoria: $('ca').value, concepto: $('co').value.trim(), persona: $('pe').value.trim(),
+    const d = { obra: val('obs', 'ob'), categoria: $('ca').value, concepto: $('co').value.trim(), persona: val('pes', 'pe'),
       monto: Number($('mo').value.replace(/[$,\s]/g, '')) || 0, forma, fecha: $('fe').value, nota: $('nt').value.trim(), foto };
     if (!d.obra || !d.categoria || !d.concepto || !d.persona) return toast('Falta proyecto, categoría, concepto o a quién', true);
     if (!(d.monto > 0)) return toast('Escribe el monto', true);
     if (!foto) return toast('Falta la foto del comprobante', true);
-    const nuevo = !C.obras.some(o => o.toLowerCase() === d.obra.toLowerCase());
+    const nuevo = $('obs').value === '__n' && !C.obras.some(o => o.toLowerCase() === d.obra.toLowerCase());
+    const pNueva = $('pes').value === '__n';
     const ok = await confirmar('¿Guardar gasto?', `${esc(d.persona)} · ${esc(d.concepto)}<br>${esc(d.obra)}${nuevo ? ' <b>(proyecto nuevo)</b>' : ''} · ${esc(d.categoria)}<br><br><b>${mxn(d.monto)}</b> ${esc(forma)}${d.monto > C.limite && S.yo.rol !== 'director' ? '<br><br>Quedará esperando la aprobación de Fernando.' : ''}`, 'Sí, guardar');
     if (!ok) return;
     try {
       toast('Guardando…');
       const r = await api('gasto', d);
-      if (nuevo) S.cache.cat = null;
+      if (nuevo || pNueva) S.cache.cat = null;
       S.inicio = null;
       toast(r.porAprobar ? `${r.folio} enviado a Fernando ⏳` : `${r.folio} guardado ✓`);
       history.back();
