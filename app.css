@@ -148,3 +148,27 @@ h2:first-child{margin-top:4px}
 .fotobtn{min-height:56px;justify-content:flex-start}
 .fotobtn.ok{border-color:var(--ok);color:var(--ok)}
 select.inp{appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2364748b' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 14px center;padding-right:36px}
+
+/* ---------- sábana (PC) ---------- */
+main.wide{max-width:1500px}
+.actbar.wide{max-width:1500px}
+.sabana{background:#fff;border-radius:var(--r);box-shadow:var(--sh);overflow:auto;max-height:calc(100vh - 290px)}
+.sabana table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+.sabana th{position:sticky;top:0;z-index:2;background:var(--navy);color:#fff;font-size:11px;font-weight:600;letter-spacing:.03em;padding:9px 8px;text-align:right;white-space:nowrap}
+.sabana th:nth-child(2),.sabana th:nth-child(3){text-align:left}
+.sabana th.ts{background:var(--orange)}
+.sabana td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+.sabana td.nu{text-align:right}
+.sabana td.nn{color:var(--muted);font-size:11.5px;text-align:right}
+.sabana td.tc{white-space:normal;min-width:260px;max-width:440px}
+.sabana td.tc .desc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;font-size:12.5px}
+.sabana td.tc .desc.open{-webkit-line-clamp:unset}
+.sabana td.ts{background:#fff7f0;padding:3px 6px}
+.sabana .tin{width:84px;border:1.5px solid #f3d3bd;border-radius:7px;padding:6px 8px;text-align:right;font-weight:600;font-size:13.5px;background:#fff;outline:none}
+.sabana .tin:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgb(255 102 0 / .15)}
+.sabana tr.dirty td.ts{background:#ffe7d4}
+.sabana tr.bad td{background:var(--bad-soft)!important}
+.sabana tr.bad .tin{border-color:var(--bad)}
+.sabana tbody tr:hover td{background:#f7f9fc}
+.sabana tfoot td{position:sticky;bottom:0;background:#eef1f5;font-weight:700;border-top:2px solid var(--navy-2)}
+.sabana .cam{width:34px;height:34px;font-size:15px;border-radius:9px}

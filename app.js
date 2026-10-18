@@ -326,6 +326,32 @@ function pintarCaptura(d) {
         <button class="cam ${c.foto ? 'has' : ''}" data-a="foto" aria-label="Foto">📷</button>
       </div></div>`;
   };
+  const ancho = window.matchMedia('(min-width: 900px)').matches;
+  const semDe = c => cambios[c.fila] !== undefined ? cambios[c.fila] : (c.sem ?? '');
+  const celdas = c => {
+    const sn = Number(semDe(c)) || 0, acu = c.acum + sn, por = c.cant - acu;
+    return { sd: mxn(sn * c.pu), acu: num(acu), por: num(por), pc: pct(c.cant ? acu / c.cant : 0), sal: mxn(por * c.pu), bad: acu > c.cant + 0.0001 };
+  };
+  const filaHtml = (c, i) => {
+    const k = celdas(c), semv = semDe(c);
+    return `<tr class="con ${cambios[c.fila] !== undefined ? 'dirty' : ''} ${k.bad ? 'bad' : ''}" data-f="${c.fila}">
+      <td class="nn">${i + 1}</td><td class="tc"><div class="desc" title="${esc(c.concepto)}">${esc(c.concepto)}</div></td><td>${esc(c.un)}</td>
+      <td class="nu">${num(c.cant)}</td><td class="nu">${mxn(c.pu)}</td><td class="nu">${mxn(c.cant * c.pu)}</td><td class="nu">${num(c.acum)}</td>
+      <td class="ts"><input class="tin" inputmode="decimal" value="${semv === null ? '' : esc(semv)}" ${bloqueada ? 'disabled' : ''}></td>
+      <td class="nu c-sd">${k.sd}</td><td class="nu c-acu">${k.acu}</td><td class="nu c-por">${k.por}</td><td class="nu c-pc">${k.pc}</td><td class="nu c-sal">${k.sal}</td>
+      <td class="tf"><button class="cam ${c.foto ? 'has' : ''}" data-a="foto" aria-label="Foto">📷</button></td></tr>`;
+  };
+  const totales = () => {
+    let imp = 0, sd = 0, sal = 0;
+    d.conceptos.forEach(c => { const sn = Number(semDe(c)) || 0; imp += c.cant * c.pu; sd += sn * c.pu; sal += (c.cant - c.acum - sn) * c.pu; });
+    return { imp, sd, sal };
+  };
+  const tablaHtml = () => {
+    const L = lista(), T = totales();
+    return `<div class="sabana"><table><thead><tr><th>#</th><th>CONCEPTO</th><th>UN</th><th>CANT.</th><th>P/U</th><th>IMPORTE</th><th>ACUM. ANTERIOR</th><th class="ts">ESTA SEM.</th><th>$ ESTA SEM.</th><th>CANT. ACUM.</th><th>POR EJEC.</th><th>%</th><th>SALDO $</th><th>FOTO</th></tr></thead>
+      <tbody>${L.map((c) => filaHtml(c, d.conceptos.indexOf(c))).join('')}</tbody>
+      <tfoot><tr><td></td><td>TOTAL</td><td></td><td></td><td></td><td class="nu">${mxn(T.imp)}</td><td></td><td></td><td class="nu" id="t-sd">${mxn(T.sd)}</td><td></td><td></td><td></td><td class="nu" id="t-sal">${mxn(T.sal)}</td><td></td></tr></tfoot></table></div>`;
+  };
   const sumaSemana = () => d.conceptos.reduce((a, c) => {
     const v = cambios[c.fila] !== undefined ? Number(cambios[c.fila]) || 0 : (c.sem || 0);
     return a + v * c.pu;
@@ -339,15 +365,31 @@ function pintarCaptura(d) {
       <input class="search" placeholder="Buscar concepto…" value="${esc(q)}" id="q">
       <div class="filter">${[['todos', 'Todos'], ['pend', 'Pendientes'], ['sem', 'Con avance esta semana']].map(([k, l]) =>
         `<button data-k="${k}" class="${filtro === k ? 'on' : ''}">${l}</button>`).join('')}</div>
-      <div id="lst">${lista().map(conHtml).join('') || '<div class="empty">Nada por aquí</div>'}</div>
+      <div id="lst">${ancho ? tablaHtml() : (lista().map(conHtml).join('') || '<div class="empty">Nada por aquí</div>')}</div>
       <div style="height:60px"></div>`;
     const acts = bloqueada ? '' :
       `<button class="btn sec grow" id="gd" ${nC ? '' : 'disabled'}>Guardar${nC ? ` (${nC})` : ''}</button>
        <button class="btn pri grow" id="en">Enviar a Fernando</button>`;
     marco(d.tab, `${d.conceptos.length} conceptos`, body, { back: true, acciones: acts });
     const main = document.getElementById('main');
+    if (ancho) { main.classList.add('wide'); document.querySelector('.actbar')?.classList.add('wide'); }
     const qi = document.getElementById('q');
-    qi.oninput = () => { q = qi.value.toLowerCase(); document.getElementById('lst').innerHTML = lista().map(conHtml).join(''); };
+    qi.oninput = () => { q = qi.value.toLowerCase(); document.getElementById('lst').innerHTML = ancho ? tablaHtml() : lista().map(conHtml).join(''); };
+    if (ancho) {
+      main.addEventListener('input', ev => {
+        if (!ev.target.classList.contains('tin')) return;
+        const tr = ev.target.closest('tr'); const c = d.conceptos.find(x => x.fila === Number(tr.dataset.f));
+        cambioT(c, ev.target, tr);
+      });
+      main.addEventListener('keydown', ev => {
+        if (!ev.target.classList.contains('tin')) return;
+        if (ev.key === 'Enter' || ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+          ev.preventDefault();
+          const ins = [...main.querySelectorAll('.tin:not([disabled])')]; const i = ins.indexOf(ev.target);
+          const n = ins[i + (ev.key === 'ArrowUp' ? -1 : 1)]; if (n) { n.focus(); n.select(); }
+        }
+      });
+    }
     main.querySelectorAll('.filter button').forEach(b => b.onclick = () => { filtro = b.dataset.k; render(); });
     main.addEventListener('click', ev => {
       const card = ev.target.closest('.con'); if (!card) return;
@@ -366,6 +408,22 @@ function pintarCaptura(d) {
     });
     const gd = document.getElementById('gd'); if (gd) gd.onclick = guardar;
     const en = document.getElementById('en'); if (en) en.onclick = enviar;
+  };
+  const cambioT = (c, inp, tr) => {
+    const raw = inp.value.replace(',', '.').trim();
+    const orig = c.sem ?? '';
+    if (String(raw) === String(orig)) delete cambios[c.fila]; else cambios[c.fila] = raw === '' ? '' : raw;
+    const k = celdas(c);
+    tr.classList.toggle('dirty', cambios[c.fila] !== undefined);
+    tr.classList.toggle('bad', k.bad);
+    tr.querySelector('.c-sd').textContent = k.sd; tr.querySelector('.c-acu').textContent = k.acu; tr.querySelector('.c-por').textContent = k.por;
+    tr.querySelector('.c-pc').textContent = k.pc; tr.querySelector('.c-sal').textContent = k.sal;
+    const T = totales();
+    document.getElementById('t-sd').textContent = mxn(T.sd); document.getElementById('t-sal').textContent = mxn(T.sal);
+    document.getElementById('tot').textContent = mxn(sumaSemana());
+    const gd = document.getElementById('gd');
+    const n = Object.keys(cambios).length;
+    if (gd) { gd.disabled = !n; gd.textContent = 'Guardar' + (n ? ` (${n})` : ''); }
   };
   const cambio = (c, inp, card) => {
     const raw = inp.value.replace(',', '.').trim();
