@@ -404,15 +404,51 @@ function pintarCaptura(d) {
   render();
 }
 
+// Lee la fecha en que se TOMÓ la foto (EXIF DateTimeOriginal) de un JPEG. Regresa 'AAAA-MM-DD' o 'sin fecha'.
+async function fechaDeFoto(file) {
+  try {
+    const buf = await file.slice(0, 256 * 1024).arrayBuffer();
+    const v = new DataView(buf);
+    if (v.getUint16(0) !== 0xFFD8) return 'sin fecha';
+    let o = 2;
+    while (o < v.byteLength - 4) {
+      const mk = v.getUint16(o), len = v.getUint16(o + 2);
+      if (mk === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) {
+        const t = o + 10, le = v.getUint16(t) === 0x4949;
+        const u16 = x => v.getUint16(x, le), u32 = x => v.getUint32(x, le);
+        const str = (off, n) => { let r = ''; for (let i = 0; i < n; i++) { const ch = v.getUint8(t + off + i); if (!ch) break; r += String.fromCharCode(ch); } return r; };
+        const leerIFD = (off, tags) => { const out = {}; const n = u16(t + off); for (let i = 0; i < n; i++) { const e = t + off + 2 + i * 12; const tag = u16(e); if (tags.includes(tag)) out[tag] = u16(e + 2) === 2 ? str(u32(e + 8), u32(e + 4)) : u32(e + 8); } return out; };
+        const ifd0 = leerIFD(u32(t + 4), [0x0132, 0x8769]);
+        let dt = '';
+        if (ifd0[0x8769]) { const ex = leerIFD(ifd0[0x8769], [0x9003, 0x9004]); dt = ex[0x9003] || ex[0x9004] || ''; }
+        dt = dt || ifd0[0x0132] || '';
+        const m = /^(\d{4}):(\d{2}):(\d{2})/.exec(dt);
+        return m ? `${m[1]}-${m[2]}-${m[3]}` : 'sin fecha';
+      }
+      if ((mk & 0xFF00) !== 0xFF00) break;
+      o += 2 + len;
+    }
+  } catch {}
+  return 'sin fecha';
+}
+const hoyISO = () => { const h = new Date(); return new Date(h - h.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const fechaCorta = iso => iso === 'sin fecha' ? 'sin fecha' : iso.slice(8, 10) + '/' + iso.slice(5, 7);
+
 function tomarFoto(d, c, card) {
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
+  inp.type = 'file'; inp.accept = 'image/*';   // sin "capture": deja tomar foto o escoger de la galería
   inp.onchange = async () => {
     const f = inp.files[0]; if (!f) return;
     try {
+      const ff = await fechaDeFoto(f);
+      if (ff !== hoyISO()) {
+        const ok = await confirmar(ff === 'sin fecha' ? 'Esta foto no trae fecha' : `Esta foto es del ${fechaCorta(ff)}`,
+          `Las fotos de avance deben ser de hoy.<br><br>Si la subes, quedará marcada como <b>${ff === 'sin fecha' ? 'SIN FECHA' : 'FOTO DEL ' + fechaCorta(ff)}</b> y Fernando lo verá.`, 'Subirla así');
+        if (!ok) return;
+      }
       toast('Subiendo foto…');
       const data = await achicar(f, 1600, 0.78);
-      const r = await api('foto', { tab: d.tab, fila: c.fila, data });
+      const r = await api('foto', { tab: d.tab, fila: c.fila, data, fechaFoto: ff });
       c.foto = (c.foto ? c.foto + ' | ' : '') + r.url;
       card.querySelector('.cam').classList.add('has');
       toast('Foto guardada ✓');
@@ -633,7 +669,7 @@ function pintarMovs() {
 function pedirFoto() {
   return new Promise((ok) => {
     const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
+    inp.type = 'file'; inp.accept = 'image/*';
     inp.onchange = async () => { const f = inp.files[0]; if (!f) return ok(null); try { ok(await achicar(f, 1600, 0.78)); } catch { ok(null); } };
     inp.click();
   });
