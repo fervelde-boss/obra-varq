@@ -129,6 +129,7 @@ function marco(titulo, sub, cuerpo, { back, acciones } = {}) {
     <div class="t"><b>${esc(titulo)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>
     <button class="av" id="av" aria-label="Mi cuenta">${esc(ini(S.yo.nombre))}</button>
   </header>
+  ${S.real ? `<div id="vbar" style="background:var(--orange);color:#fff;font-size:13px;font-weight:600;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:calc(52px + var(--safe-t));z-index:19">👁 Viendo como ${esc(S.yo.nombre)}<button style="background:#fff;color:var(--orange-2);border:0;border-radius:8px;padding:5px 10px;font-weight:700;cursor:pointer" id="vsal">Volver a mí</button></div>` : ''}
   <main id="main">${cuerpo}</main>
   ${acciones ? `<div class="actbar">${acciones}</div>` : ''}
   ${nav.length > 1 ? `<nav class="nav">${nav.map(([r, i, l]) =>
@@ -136,6 +137,7 @@ function marco(titulo, sub, cuerpo, { back, acciones } = {}) {
   $app.querySelectorAll('.nav button').forEach(b => b.onclick = () => ir(b.dataset.r));
   const bk = document.getElementById('bk'); if (bk) bk.onclick = () => history.back();
   document.getElementById('av').onclick = cuenta;
+  const vs = document.getElementById('vsal'); if (vs) vs.onclick = () => verComo('director');
   window.scrollTo(0, 0);
 }
 function contadores() {
@@ -151,11 +153,28 @@ function contadores() {
   return d;
 }
 function cuenta() {
-  const sh = abrirModal(`<div class="row"><div style="width:44px;height:44px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px">${esc(ini(S.yo.nombre))}</div>
-    <div class="grow"><div class="ttl">${esc(S.yo.nombre)}</div><div class="mut">${esc(S.yo.email)} · ${esc(rolTxt(S.yo.rol))}</div></div></div>
+  const real = S.real || S.yo;
+  const vista = !!S.real;
+  const sh = abrirModal(`<div class="row"><div style="width:44px;height:44px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px">${esc(ini(real.nombre))}</div>
+    <div class="grow"><div class="ttl">${esc(real.nombre)}</div><div class="mut">${esc(real.email)} · ${esc(rolTxt(real.rol))}</div></div></div>
+    ${real.rol === 'director' ? `<h2 style="margin-top:18px">Ver la app como…</h2>
+      <div class="seg" id="vc">
+        <button data-r="director" class="${!vista ? 'on' : ''}">Yo</button>
+        <button data-r="residente" class="${vista && S.yo.rol === 'residente' ? 'on' : ''}">Raúl</button>
+        <button data-r="tesoreria" class="${vista && S.yo.rol === 'tesoreria' ? 'on' : ''}">Fanny</button>
+      </div>
+      <div class="mut" style="font-size:12.5px;margin-top:8px">Ves exactamente su pantalla. Ojo: lo que guardes o envíes ahí es real y queda a tu nombre en la bitácora.</div>` : ''}
     <div class="acts"><button class="btn sec grow" id="c1">Cerrar</button><button class="btn danger grow" id="c2">Salir</button></div>`);
+  sh.querySelectorAll('#vc button').forEach(b => b.onclick = () => { cerrarModal(); verComo(b.dataset.r); });
   sh.querySelector('#c1').onclick = cerrarModal;
   sh.querySelector('#c2').onclick = () => { cerrarModal(); salir(); };
+}
+function verComo(rol) {
+  const real = S.real || S.yo;
+  if (rol === 'director') { S.yo = real; S.real = null; }
+  else { S.real = real; S.yo = { ...real, rol, nombre: rol === 'residente' ? 'Raúl' : 'Fanny' }; }
+  S.inicio = null;
+  ir('inicio', {}, true);
 }
 const rolTxt = r => ({ director: 'Director', residente: 'Residente', tesoreria: 'Tesorería' }[r] || r);
 
