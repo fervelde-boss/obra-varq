@@ -146,6 +146,7 @@ function contadores() {
     if (env) d.estimaciones = env;
     if (I.hitosPorAutorizar?.length) d.hitos = I.hitosPorAutorizar.length;
     if (I.fanny?.lista?.length) d.fanny = I.fanny.lista.length;
+    if (I.gastos?.length) d.mas = I.gastos.length;
   }
   return d;
 }
@@ -196,12 +197,14 @@ function inicioDirector(I) {
   const hit = I.hitosPorAutorizar || [];
   const tile = (cls, n, l, r) => `<div class="tile ${cls} ${n ? '' : 'zero'}" data-go="${r}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
   let h = `<div class="hello">${saludo()}, ${esc(S.yo.nombre)}</div>
-  <p class="sub">${env.length || hit.length ? 'Tienes cosas por autorizar.' : 'Todo al corriente.'}</p>
+  <p class="sub">${env.length || hit.length || (I.gastos || []).some(g => g.porAprobar) ? 'Tienes cosas por autorizar.' : 'Todo al corriente.'}</p>
   <div class="tiles">
     ${tile('or', env.length, 'Estimaciones por autorizar', 'estimaciones')}
     ${tile('or', hit.length, 'Hitos de subcontrato por pagar', 'hitos')}
     ${tile('bl', mxn0(conFanny), `Con Fanny sin pagar (${fan.lista.length})`, 'fanny')}
     ${tile('ok', mxn0(fan.efectivo), 'Efectivo a llevar hoy', 'fanny')}
+    ${tile('or', (I.gastos || []).length, `Gastos directos por revisar${(I.gastos || []).some(g => g.porAprobar) ? ' (hay por aprobar)' : ''}`, 'gastos')}
+    <div class="tile bl" data-go="gasto"><div class="n">＋</div><div class="l">Registrar un gasto</div></div>
   </div>`;
   if (env.length) {
     h += `<h2>Raúl ya envió</h2>` + env.map(cardHoja).join('');
@@ -560,35 +563,155 @@ function vistaFanny(F) {
       <div class="big">${mxn(F.efectivo)}</div>
       <div style="opacity:.75;font-size:13px;margin-top:4px">${F.lista.length} pago${F.lista.length === 1 ? '' : 's'} pendiente${F.lista.length === 1 ? '' : 's'} · ${mxn0(tot)}</div>
     </div>
+    <button class="btn pri full" id="ng" style="margin-bottom:6px">＋ Registrar gasto</button>
     <h2>Por pagar</h2>`;
   h += F.lista.length ? F.lista.map(x => `<div class="card">
       <div class="row"><div class="grow"><div class="ttl">${esc(x.persona)}</div>
       <div class="mut">${esc(x.concepto)}</div><div class="mut" style="font-size:12px">${esc(x.obra)} · ${esc(x.fecha)} · ${esc(x.folio)}</div></div>
       <div style="text-align:right"><div class="amt">${mxn(x.importe)}</div><span class="chip ${x.forma === 'Efectivo' ? 'ok' : 'bl'}">${esc(x.forma || '—')}</span></div></div>
-      ${esF || S.yo.rol === 'director' ? `<button class="btn ${esF ? 'pri' : 'sec'} full" style="margin-top:10px" data-p="${x.fila}">✓ Ya lo pagué</button>` : ''}
+      ${x.porAprobar ? `<div style="margin-top:10px"><span class="chip wa">⏳ Espera aprobación de Fernando</span></div>`
+        : `<button class="btn ${esF ? 'pri' : 'sec'} full" style="margin-top:10px" data-p="${x.fila}">✓ Ya lo pagué</button>`}
     </div>`).join('') : `<div class="empty"><div class="e">🎉</div>No hay pagos pendientes</div>`;
+  h += '<div style="height:20px"></div>';
   marco(esF ? 'Pagos' : 'Pagos con Fanny', esF ? 'Velderrain Arquitectos' : '', h);
+  document.getElementById('ng').onclick = () => ir('gasto', { de: esF ? 'inicio' : 'fanny' });
   document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => marcarPagado(F.lista.find(y => y.fila === Number(b.dataset.p))));
 }
+
+// pide una foto con la cámara y la regresa achicada
+function pedirFoto() {
+  return new Promise((ok) => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
+    inp.onchange = async () => { const f = inp.files[0]; if (!f) return ok(null); try { ok(await achicar(f, 1600, 0.78)); } catch { ok(null); } };
+    inp.click();
+  });
+}
+function cajaFoto(sh, sel, cb) {
+  const b = sh.querySelector(sel);
+  b.onclick = async () => {
+    const d = await pedirFoto(); if (!d) return;
+    cb(d);
+    b.innerHTML = `<img src="${d}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px"> <span>Foto lista ✓ (tocar para cambiar)</span>`;
+    b.classList.add('ok');
+  };
+}
+
 function marcarPagado(x) {
   const fact = x.forma === 'Facturado';
+  let foto = null;
+  const yaTiene = !!x.foto;
   const sh = abrirModal(`<h3>¿Ya lo pagaste?</h3><div class="mut">${esc(x.persona)} · ${esc(x.concepto)}</div>
     <div class="big" style="margin:12px 0">${mxn(x.importe)}</div>
+    <div class="fld"><label>Foto del recibo firmado o de la transferencia${yaTiene ? ' (ya tiene una; opcional)' : ''}</label>
+      <button class="btn sec full fotobtn" id="ft">📷 Tomar foto</button></div>
     ${fact ? `<div class="fld"><label>UUID / folio fiscal de la factura</label><input class="inp" id="uu" value="${esc(x.uuid || '')}" placeholder="xxxxxxxx-xxxx-…"></div>` : ''}
     <div class="acts"><button class="btn sec grow" id="n">Todavía no</button><button class="btn pri grow" id="s">Sí, pagado</button></div>`);
+  cajaFoto(sh, '#ft', d => foto = d);
   sh.querySelector('#n').onclick = cerrarModal;
   sh.querySelector('#s').onclick = async () => {
     const uuid = fact ? sh.querySelector('#uu').value.trim() : '';
+    if (!foto && !yaTiene) return toast('Falta la foto del recibo o la transferencia', true);
     if (fact && !uuid) return toast('Escribe el UUID de la factura', true);
     cerrarModal();
-    try { const F = await api('pagado', { fila: x.fila, folio: x.folio, uuid }); toast('Pagado ✓'); if (S.inicio) S.inicio.fanny = F; vistaFanny(F); }
+    try { toast('Guardando…'); const F = await api('pagado', { fila: x.fila, folio: x.folio, uuid, foto }); toast('Pagado ✓'); if (S.inicio) S.inicio.fanny = F; vistaFanny(F); }
     catch (e) { toast(e.message, true); }
   };
 }
 
+// --- registrar gasto directo (Fanny / Fernando) ---
+VISTAS.gasto = async () => {
+  marco('Registrar gasto', 'Gasto directo', `<div class="empty"><div class="spin" style="margin:30px auto"></div></div>`, { back: true });
+  const C = S.cache.cat || (S.cache.cat = await api('catalogos'));
+  const hoy = new Date(); const iso = new Date(hoy - hoy.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  let forma = 'Efectivo', foto = null;
+  const opt = arr => arr.map(o => `<option value="${esc(o)}">`).join('');
+  const h = `
+    <div class="card">
+      <div class="fld"><label>¿De qué proyecto?</label><input class="inp" id="ob" list="l-ob" placeholder="Escoge o escribe uno nuevo"><datalist id="l-ob">${opt(C.obras)}</datalist></div>
+      <div class="fld"><label>Categoría</label><select class="inp" id="ca"><option value="">Escoge…</option>${C.categorias.map(c => `<option>${esc(c)}</option>`).join('')}</select></div>
+      <div class="fld"><label>Concepto (qué se pagó, 3 a 8 palabras)</label><input class="inp" id="co" placeholder="Ej. Instalación de reloj checador"></div>
+      <div class="fld"><label>¿A quién se le pagó?</label><input class="inp" id="pe" list="l-pe" placeholder="Nombre"><datalist id="l-pe">${opt(C.personas)}</datalist></div>
+      <div class="fld"><label>Monto</label><input class="inp money" id="mo" inputmode="decimal" placeholder="$0.00"></div>
+      <div class="fld"><label>Forma</label><div class="seg" id="fm"><button data-f="Efectivo" class="on">Efectivo</button><button data-f="Facturado">Facturado</button></div></div>
+      <div class="fld"><label>Fecha del pago</label><input class="inp" id="fe" type="date" value="${iso}" max="${iso}"></div>
+      <div class="fld"><label>Foto del recibo, ticket o transferencia</label><button class="btn sec full fotobtn" id="ft">📷 Tomar foto</button></div>
+      <div class="fld"><label>Nota (opcional)</label><input class="inp" id="nt" placeholder="Ej. Lo pidió Fernando por WhatsApp"></div>
+      <div class="mut" id="lim" style="font-size:13px"></div>
+    </div><div style="height:70px"></div>`;
+  marco('Registrar gasto', 'Gasto directo', h, { back: true, acciones: `<button class="btn pri grow" id="gu">Guardar gasto</button>` });
+  const $ = id => document.getElementById(id);
+  const sh = document.getElementById('main');
+  cajaFoto(sh, '#ft', d => foto = d);
+  document.querySelectorAll('#fm button').forEach(b => b.onclick = () => { forma = b.dataset.f; document.querySelectorAll('#fm button').forEach(x => x.classList.toggle('on', x === b)); });
+  const lim = () => { const v = Number($('mo').value.replace(/[$,\s]/g, '')) || 0; $('lim').innerHTML = v > C.limite && S.yo.rol !== 'director' ? `⏳ Más de ${mxn0(C.limite)}: quedará esperando la aprobación de Fernando antes de pagarse.` : ''; };
+  $('mo').oninput = lim;
+  $('gu').onclick = async () => {
+    const d = { obra: $('ob').value.trim(), categoria: $('ca').value, concepto: $('co').value.trim(), persona: $('pe').value.trim(),
+      monto: Number($('mo').value.replace(/[$,\s]/g, '')) || 0, forma, fecha: $('fe').value, nota: $('nt').value.trim(), foto };
+    if (!d.obra || !d.categoria || !d.concepto || !d.persona) return toast('Falta proyecto, categoría, concepto o a quién', true);
+    if (!(d.monto > 0)) return toast('Escribe el monto', true);
+    if (!foto) return toast('Falta la foto del comprobante', true);
+    const nuevo = !C.obras.some(o => o.toLowerCase() === d.obra.toLowerCase());
+    const ok = await confirmar('¿Guardar gasto?', `${esc(d.persona)} · ${esc(d.concepto)}<br>${esc(d.obra)}${nuevo ? ' <b>(proyecto nuevo)</b>' : ''} · ${esc(d.categoria)}<br><br><b>${mxn(d.monto)}</b> ${esc(forma)}${d.monto > C.limite && S.yo.rol !== 'director' ? '<br><br>Quedará esperando la aprobación de Fernando.' : ''}`, 'Sí, guardar');
+    if (!ok) return;
+    try {
+      toast('Guardando…');
+      const r = await api('gasto', d);
+      if (nuevo) S.cache.cat = null;
+      S.inicio = null;
+      toast(r.porAprobar ? `${r.folio} enviado a Fernando ⏳` : `${r.folio} guardado ✓`);
+      history.back();
+    } catch (e) { toast(e.message, true); }
+  };
+};
+
+// --- revisión de gastos directos (Fernando) ---
+VISTAS.gastos = async () => {
+  marco('Gastos directos', 'Por revisar', `<div class="empty"><div class="spin" style="margin:30px auto"></div></div>`, { back: true });
+  pintarGastos(await api('gastosRevisar'));
+};
+function pintarGastos(L) {
+  const apr = L.filter(x => x.porAprobar), rev = L.filter(x => !x.porAprobar);
+  const card = x => `<div class="card">
+    <div class="row"><div class="grow"><div class="ttl">${esc(x.persona)}</div><div class="mut">${esc(x.concepto)}</div>
+      <div class="mut" style="font-size:12px">${esc(x.obra)} · ${esc(x.categoria)} · ${esc(x.fecha)} · ${esc(x.folio)}</div></div>
+      <div style="text-align:right"><div class="amt">${mxn(x.importe)}</div><span class="chip ${x.forma === 'Efectivo' ? 'ok' : 'bl'}">${esc(x.forma)}</span></div></div>
+    ${x.foto ? `<a href="${esc(String(x.foto).split(' | ')[0])}" target="_blank" rel="noopener" class="mut" style="display:inline-block;margin-top:8px">📷 Ver comprobante ↗</a>` : '<div class="mut" style="margin-top:8px;color:var(--bad)">Sin foto</div>'}
+    <div class="row" style="margin-top:10px;gap:8px">
+      <button class="btn danger grow" data-x="rechazar" data-f="${x.fila}">Rechazar</button>
+      <button class="btn pri grow" data-x="${x.porAprobar ? 'aprobar' : 'revisado'}" data-f="${x.fila}">${x.porAprobar ? 'Aprobar' : '✓ Revisado'}</button>
+    </div></div>`;
+  let h = '';
+  if (apr.length) h += `<h2>Esperan tu aprobación (más de $10,000)</h2>` + apr.map(card).join('');
+  h += `<h2>Gastos directos por revisar</h2>` + (rev.length ? rev.map(card).join('') : `<div class="empty"><div class="e">✅</div>Todo revisado</div>`);
+  marco('Gastos directos', `${L.length} por revisar`, h, { back: true });
+  document.querySelectorAll('[data-x]').forEach(b => b.onclick = async () => {
+    const x = L.find(y => y.fila === Number(b.dataset.f)); const dec = b.dataset.x;
+    let motivo = '';
+    if (dec === 'rechazar') {
+      const r = await new Promise(res => {
+        const sh = abrirModal(`<h3>¿Rechazar?</h3><div class="mut">${esc(x.persona)} · ${esc(x.concepto)} · ${mxn(x.importe)}</div>
+          <div class="fld" style="margin-top:12px"><label>Motivo</label><input class="inp" id="mt" placeholder="Ej. No corresponde a este proyecto"></div>
+          <div class="acts"><button class="btn sec grow" id="n">Cancelar</button><button class="btn danger grow" id="s">Rechazar</button></div>`);
+        sh.querySelector('#n').onclick = () => { cerrarModal(); res(null); };
+        sh.querySelector('#s').onclick = () => { const m = sh.querySelector('#mt').value.trim(); cerrarModal(); res(m || 'sin motivo'); };
+      });
+      if (r === null) return; motivo = r;
+    } else if (dec === 'aprobar') {
+      if (!(await confirmar('¿Aprobar gasto?', `${esc(x.persona)} · ${esc(x.concepto)}<br><b>${mxn(x.importe)}</b><br><br>Fanny ya podrá pagarlo.`, 'Sí, aprobar'))) return;
+    }
+    try { const n = await api('gastoRevisar', { fila: x.fila, folio: x.folio, decision: dec, motivo }); toast('Listo ✓'); S.inicio = null; pintarGastos(n); }
+    catch (e) { toast(e.message, true); }
+  });
+}
+
 // --- más (Fernando) ---
 VISTAS.mas = async () => {
-  const h = `<h2>Administración</h2>
+  const h = `<h2>Dinero</h2>
+    <div class="card tap" data-go="gastos"><div class="row"><div class="grow"><div class="ttl">🧾 Gastos directos</div><div class="mut">Lo que Fanny registró sin contrato: revisar, aprobar o rechazar</div></div>${S.inicio?.gastos?.length ? `<span class="chip or">${S.inicio.gastos.length}</span>` : '›'}</div></div>
+    <div class="card tap" data-go="gasto"><div class="row"><div class="grow"><div class="ttl">＋ Registrar un gasto</div><div class="mut">Queda revisado a tu nombre</div></div>›</div></div>
+    <h2>Administración</h2>
     <div class="card tap" data-go="usuarios"><div class="row"><div class="grow"><div class="ttl">👥 Usuarios</div><div class="mut">Quién entra a la app y qué puede hacer</div></div>›</div></div>
     <div class="card tap" data-go="bitacora"><div class="row"><div class="grow"><div class="ttl">🧾 Bitácora</div><div class="mut">Todo lo que se movió, quién y cuándo</div></div>›</div></div>
     <h2>Hojas</h2>
