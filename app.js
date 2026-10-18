@@ -222,6 +222,7 @@ function inicioDirector(I) {
     ${tile('or', hit.length, 'Hitos de subcontrato por pagar', 'hitos')}
     ${tile('bl', mxn0(conFanny), `Con Fanny sin pagar (${fan.lista.length})`, 'fanny')}
     ${tile('ok', mxn0(fan.efectivo), 'Efectivo a llevar hoy', 'fanny')}
+    ${tile('bl', mxn0(fan.fiscal || 0), 'Cuenta fiscal a cubrir hoy', 'fanny')}
     ${tile('or', (I.gastos || []).length, `Gastos directos por revisar${(I.gastos || []).some(g => g.porAprobar) ? ' (hay por aprobar)' : ''}`, 'gastos')}
     <div class="tile bl" data-go="gasto"><div class="n">＋</div><div class="l">Registrar un gasto</div></div>
   </div>`;
@@ -580,6 +581,7 @@ function vistaFanny(F) {
     <div class="card" style="background:var(--navy);color:#fff">
       <div style="opacity:.75;font-size:13px">💵 Efectivo a llevar hoy</div>
       <div class="big">${mxn(F.efectivo)}</div>
+      <div style="opacity:.75;font-size:13px;margin-top:8px">🏦 Cuenta fiscal a cubrir hoy: <b style="opacity:1">${mxn(F.fiscal || 0)}</b></div>
       <div style="opacity:.75;font-size:13px;margin-top:4px">${F.lista.length} pago${F.lista.length === 1 ? '' : 's'} pendiente${F.lista.length === 1 ? '' : 's'} · ${mxn0(tot)}</div>
     </div>
     <button class="btn pri full" id="ng" style="margin-bottom:6px">＋ Registrar gasto</button>
@@ -673,7 +675,7 @@ VISTAS.gasto = async () => {
   marco('Registrar gasto', 'Gasto directo', `<div class="empty"><div class="spin" style="margin:30px auto"></div></div>`, { back: true });
   const C = S.cache.cat || (S.cache.cat = await api('catalogos'));
   const hoy = new Date(); const iso = new Date(hoy - hoy.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-  let forma = 'Efectivo', foto = null;
+  let forma = 'Efectivo', foto = null, pagado = true;
   const opt = arr => arr.map(o => `<option value="${esc(o)}">`).join('');
   const h = `
     <div class="card">
@@ -685,8 +687,9 @@ VISTAS.gasto = async () => {
         <input class="inp hidden" id="pe" placeholder="Nombre completo de la persona nueva" style="margin-top:8px"></div>
       <div class="fld"><label>Monto neto pagado</label><input class="inp money" id="mo" inputmode="decimal" placeholder="$0.00"></div>
       <div class="fld"><label>Forma</label><div class="seg" id="fm"><button data-f="Efectivo" class="on">Efectivo</button><button data-f="Facturado">Facturado</button></div></div>
+      <div class="fld"><label>¿Ya se pagó?</label><div class="seg" id="yp"><button data-p="1" class="on">Sí, ya se pagó</button><button data-p="0">Todavía no</button></div></div>
       <div class="fld"><label>Fecha del pago</label><input class="inp" id="fe" type="date" value="${iso}" max="${iso}"></div>
-      <div class="fld"><label>Foto del recibo, ticket o transferencia</label><button class="btn sec full fotobtn" id="ft">📷 Tomar foto</button></div>
+      <div class="fld"><label>Foto del recibo, ticket, nota o transferencia</label><button class="btn sec full fotobtn" id="ft">📷 Tomar foto</button></div>
       <div class="fld"><label>Nota (opcional)</label><input class="inp" id="nt" placeholder="Ej. Lo pidió Fernando por WhatsApp"></div>
       <div class="mut" id="lim" style="font-size:13px"></div>
     </div><div style="height:70px"></div>`;
@@ -697,12 +700,13 @@ VISTAS.gasto = async () => {
   document.querySelectorAll('#fm button').forEach(b => b.onclick = () => { forma = b.dataset.f; document.querySelectorAll('#fm button').forEach(x => x.classList.toggle('on', x === b)); });
   const lim = () => { const v = Number($('mo').value.replace(/[$,\s]/g, '')) || 0; $('lim').innerHTML = v > C.limite && S.yo.rol !== 'director' ? `⏳ Más de ${mxn0(C.limite)}: quedará esperando la aprobación de Fernando antes de pagarse.` : ''; };
   $('mo').oninput = lim;
+  document.querySelectorAll('#yp button').forEach(b => b.onclick = () => { pagado = b.dataset.p === '1'; document.querySelectorAll('#yp button').forEach(x => x.classList.toggle('on', x === b)); });
   const otro = (selId, inpId) => { $(selId).onchange = () => { const n = $(selId).value === '__n'; $(inpId).classList.toggle('hidden', !n); if (n) $(inpId).focus(); }; };
   otro('obs', 'ob'); otro('pes', 'pe');
   const val = (selId, inpId) => $(selId).value === '__n' ? $(inpId).value.trim() : $(selId).value;
   $('gu').onclick = async () => {
     const d = { obra: val('obs', 'ob'), categoria: $('ca').value, concepto: $('co').value.trim(), persona: val('pes', 'pe'),
-      monto: Number($('mo').value.replace(/[$,\s]/g, '')) || 0, forma, fecha: $('fe').value, nota: $('nt').value.trim(), foto };
+      monto: Number($('mo').value.replace(/[$,\s]/g, '')) || 0, forma, fecha: $('fe').value, nota: $('nt').value.trim(), foto, pagado };
     if (!d.obra || !d.categoria || !d.concepto || !d.persona) return toast('Falta proyecto, categoría, concepto o a quién', true);
     if (!(d.monto > 0)) return toast('Escribe el monto', true);
     if (!foto) return toast('Falta la foto del comprobante', true);
@@ -711,7 +715,7 @@ VISTAS.gasto = async () => {
     if (dup && !(await confirmar('¿Ya lo capturaste?', `Ya hay un pago a <b>${esc(dup.persona)}</b> por <b>${mxn(dup.importe)}</b> del ${esc(diaTxt(dup.fecha))} (${esc(dup.folio)} · ${esc(dup.concepto)}).<br><br>¿Es otro pago distinto?`, 'Sí, es otro'))) return;
     const nuevo = $('obs').value === '__n' && !C.obras.some(o => o.toLowerCase() === d.obra.toLowerCase());
     const pNueva = $('pes').value === '__n';
-    const ok = await confirmar('¿Guardar gasto?', `${esc(d.persona)} · ${esc(d.concepto)}<br>${esc(d.obra)}${nuevo ? ' <b>(proyecto nuevo)</b>' : ''} · ${esc(d.categoria)}<br><br><b>${mxn(d.monto)}</b> ${esc(forma)}${d.monto > C.limite && S.yo.rol !== 'director' ? '<br><br>Quedará esperando la aprobación de Fernando.' : ''}`, 'Sí, guardar');
+    const ok = await confirmar('¿Guardar gasto?', `${esc(d.persona)} · ${esc(d.concepto)}<br>${esc(d.obra)}${nuevo ? ' <b>(proyecto nuevo)</b>' : ''} · ${esc(d.categoria)}<br><br><b>${mxn(d.monto)}</b> ${esc(forma)} · ${pagado ? 'ya pagado' : 'queda por pagar'}${d.monto > C.limite && S.yo.rol !== 'director' ? '<br><br>Quedará esperando la aprobación de Fernando.' : ''}`, 'Sí, guardar');
     if (!ok) return;
     try {
       toast('Guardando…');
@@ -719,7 +723,7 @@ VISTAS.gasto = async () => {
       if (nuevo || pNueva) S.cache.cat = null;
       S.cache.movs = null;
       S.inicio = null;
-      toast(r.porAprobar ? `${r.folio} enviado a Fernando ⏳` : `${r.folio} guardado ✓`);
+      toast(r.porAprobar ? `${r.folio} enviado a Fernando ⏳` : `${r.folio} guardado ✓${pagado ? '' : ' (por pagar)'}`);
       history.back();
     } catch (e) { toast(e.message, true); }
   };
@@ -734,7 +738,7 @@ function pintarGastos(L) {
   const apr = L.filter(x => x.porAprobar), rev = L.filter(x => !x.porAprobar);
   const card = x => `<div class="card">
     <div class="row"><div class="grow"><div class="ttl">${esc(x.persona)}</div><div class="mut">${esc(x.concepto)}</div>
-      <div class="mut" style="font-size:12px">${esc(x.obra)} · ${esc(x.categoria)} · ${esc(x.fecha)} · ${esc(x.folio)}</div></div>
+      <div class="mut" style="font-size:12px">${esc(x.obra)} · ${esc(x.categoria)} · ${esc(x.fecha)} · ${esc(x.folio)} · ${esc(String(x.origen || '').replace('Manual - ', 'App · '))}${x.pagado ? '' : ' · por pagar'}</div></div>
       <div style="text-align:right"><div class="amt">${mxn(x.importe)}</div><span class="chip ${x.forma === 'Efectivo' ? 'ok' : 'bl'}">${esc(x.forma)}</span></div></div>
     ${x.foto ? `<a href="${esc(String(x.foto).split(' | ')[0])}" target="_blank" rel="noopener" class="mut" style="display:inline-block;margin-top:8px">📷 Ver comprobante ↗</a>` : '<div class="mut" style="margin-top:8px;color:var(--bad)">Sin foto</div>'}
     <div class="row" style="margin-top:10px;gap:8px">
