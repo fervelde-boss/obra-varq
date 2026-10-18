@@ -172,3 +172,6 @@ main.wide{max-width:1500px}
 .sabana tbody tr:hover td{background:#f7f9fc}
 .sabana tfoot td{position:sticky;bottom:0;background:#eef1f5;font-weight:700;border-top:2px solid var(--navy-2)}
 .sabana .cam{width:34px;height:34px;font-size:15px;border-radius:9px}
+.sabana th.cl{text-align:center}
+.sabana td.cl{font-weight:700;text-align:center;color:var(--navy);white-space:nowrap}
+.clv{display:inline-block;background:#e8edf5;color:var(--navy);border-radius:6px;padding:1px 7px;font-size:12px;margin-right:4px}

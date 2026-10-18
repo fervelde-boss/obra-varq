@@ -304,7 +304,7 @@ function pintarCaptura(d) {
   const lista = () => d.conceptos.filter(c => {
     if (filtro === 'pend' && c.acum >= c.cant) return false;
     if (filtro === 'sem' && !(c.sem > 0)) return false;
-    if (q && !c.concepto.toLowerCase().includes(q)) return false;
+    if (q && !(c.concepto.toLowerCase().includes(q) || String(c.clave || '').toLowerCase() === q || String(c.clave || '').toLowerCase().startsWith(q))) return false;
     return true;
   });
   const conHtml = c => {
@@ -314,7 +314,7 @@ function pintarCaptura(d) {
     const nv = c.cant ? Math.min((c.acum + sn) / c.cant, 1) : 0;
     const bad = c.acum + sn > c.cant + 0.0001;
     return `<div class="card con" data-f="${c.fila}">
-      <div class="desc">${esc(c.concepto)}</div>
+      <div class="desc">${c.clave ? `<b class="clv">${esc(c.clave)}</b> ` : ''}${esc(c.concepto)}</div>
       <div class="prog"><i style="width:${av * 100}%"></i></div>
       <div class="meta"><span>Llevas ${num(c.acum)} de ${num(c.cant)} ${esc(c.un)}</span><span>${pct(nv)}</span></div>
       <div class="cap">
@@ -335,7 +335,7 @@ function pintarCaptura(d) {
   const filaHtml = (c, i) => {
     const k = celdas(c), semv = semDe(c);
     return `<tr class="con ${cambios[c.fila] !== undefined ? 'dirty' : ''} ${k.bad ? 'bad' : ''}" data-f="${c.fila}">
-      <td class="nn">${i + 1}</td><td class="tc"><div class="desc" title="${esc(c.concepto)}">${esc(c.concepto)}</div></td><td>${esc(c.un)}</td>
+      <td class="cl">${esc(c.clave || '')}</td><td class="tc"><div class="desc" title="${esc(c.concepto)}">${esc(c.concepto)}</div></td><td>${esc(c.un)}</td>
       <td class="nu">${num(c.cant)}</td><td class="nu">${mxn(c.pu)}</td><td class="nu">${mxn(c.cant * c.pu)}</td><td class="nu">${num(c.acum)}</td>
       <td class="ts"><input class="tin" inputmode="decimal" value="${semv === null ? '' : esc(semv)}" ${bloqueada ? 'disabled' : ''}></td>
       <td class="nu c-sd">${k.sd}</td><td class="nu c-acu">${k.acu}</td><td class="nu c-por">${k.por}</td><td class="nu c-pc">${k.pc}</td><td class="nu c-sal">${k.sal}</td>
@@ -348,7 +348,7 @@ function pintarCaptura(d) {
   };
   const tablaHtml = () => {
     const L = lista(), T = totales();
-    return `<div class="sabana"><table><thead><tr><th>#</th><th>CONCEPTO</th><th>UN</th><th>CANT.</th><th>P/U</th><th>IMPORTE</th><th>ACUM. ANTERIOR</th><th class="ts">ESTA SEM.</th><th>$ ESTA SEM.</th><th>CANT. ACUM.</th><th>POR EJEC.</th><th>%</th><th>SALDO $</th><th>FOTO</th></tr></thead>
+    return `<div class="sabana"><table><thead><tr><th class="cl">CLAVE</th><th>CONCEPTO</th><th>UN</th><th>CANT.</th><th>P/U</th><th>IMPORTE</th><th>ACUM. ANTERIOR</th><th class="ts">ESTA SEM.</th><th>$ ESTA SEM.</th><th>CANT. ACUM.</th><th>POR EJEC.</th><th>%</th><th>SALDO $</th><th>FOTO</th></tr></thead>
       <tbody>${L.map((c) => filaHtml(c, d.conceptos.indexOf(c))).join('')}</tbody>
       <tfoot><tr><td></td><td>TOTAL</td><td></td><td></td><td></td><td class="nu">${mxn(T.imp)}</td><td></td><td></td><td class="nu" id="t-sd">${mxn(T.sd)}</td><td></td><td></td><td></td><td class="nu" id="t-sal">${mxn(T.sal)}</td><td></td></tr></tfoot></table></div>`;
   };
@@ -362,7 +362,7 @@ function pintarCaptura(d) {
       ${bloqueada ? `<div class="card" style="background:var(--orange-soft)"><b>📨 Ya la enviaste</b><div class="mut">Si necesitas corregir, pídele a Fernando que te la regrese.</div></div>` : ''}
       <div class="card"><div class="row"><div class="grow"><div class="ttl">${esc(d.contratista)}</div><div class="mut">${esc(d.obra)} · ${esc(R.folio)}</div></div>
       <div style="text-align:right"><div class="amt" id="tot">${mxn(sumaSemana())}</div><div class="mut" style="font-size:12px">esta semana</div></div></div></div>
-      <input class="search" placeholder="Buscar concepto…" value="${esc(q)}" id="q">
+      <input class="search" placeholder="Buscar por clave (ej. R.3) o concepto…" value="${esc(q)}" id="q">
       <div class="filter">${[['todos', 'Todos'], ['pend', 'Pendientes'], ['sem', 'Con avance esta semana']].map(([k, l]) =>
         `<button data-k="${k}" class="${filtro === k ? 'on' : ''}">${l}</button>`).join('')}</div>
       <div id="lst">${ancho ? tablaHtml() : (lista().map(conHtml).join('') || '<div class="empty">Nada por aquí</div>')}</div>
@@ -543,7 +543,7 @@ VISTAS.detalle = async (p) => {
       <div class="mut">${esc(d.obra)} · ${esc(R.folio)}</div></div>
       ${R.enviado ? `<span class="chip or">📨 ${esc(R.fechaEnvio.slice(0, 11))}</span>` : `<span class="chip gr">Sin enviar</span>`}</div></div>
     <h2>Esta semana (${sem.length})</h2>
-    ${sem.length ? `<div class="card">${sem.map(c => `<div class="kv"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.concepto)}</span>
+    ${sem.length ? `<div class="card">${sem.map(c => `<div class="kv"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.clave ? `<b class="clv">${esc(c.clave)}</b> ` : ''}${esc(c.concepto)}</span>
        <span class="amt">${num(c.sem)} ${esc(c.un)} · ${mxn0(c.sem * c.pu)}</span></div>`).join('')}</div>` : `<div class="card mut">Sin avance capturado esta semana.</div>`}
     <button class="btn sec full" id="ver" style="margin-bottom:6px">Ver todos los conceptos / corregir</button>
     <h2>Números</h2>
