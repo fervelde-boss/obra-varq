@@ -591,10 +591,40 @@ function vistaFanny(F) {
       ${x.porAprobar ? `<div style="margin-top:10px"><span class="chip wa">⏳ Espera aprobación de Fernando</span></div>`
         : `<button class="btn ${esF ? 'pri' : 'sec'} full" style="margin-top:10px" data-p="${x.fila}">✓ Ya lo pagué</button>`}
     </div>`).join('') : `<div class="empty"><div class="e">🎉</div>No hay pagos pendientes</div>`;
-  h += '<div style="height:20px"></div>';
+  h += `<h2>Ya capturados</h2>
+    <div class="filter" id="mf">${[[1, 'Hoy'], [7, '7 días'], [30, '30 días']].map(([d, l]) => `<button data-d="${d}" class="${(S.cache.movDias || 7) === d ? 'on' : ''}">${l}</button>`).join('')}</div>
+    <input class="search" id="mq" placeholder="Buscar persona, concepto o proyecto…">
+    <div id="ml"><div class="empty"><div class="spin" style="margin:10px auto"></div></div></div>
+    <div style="height:20px"></div>`;
   marco(esF ? 'Pagos' : 'Pagos con Fanny', esF ? 'Velderrain Arquitectos' : '', h);
   document.getElementById('ng').onclick = () => ir('gasto', { de: esF ? 'inicio' : 'fanny' });
+  cargarMovs();
+  document.querySelectorAll('#mf button').forEach(b => b.onclick = () => { S.cache.movDias = Number(b.dataset.d); document.querySelectorAll('#mf button').forEach(x => x.classList.toggle('on', x === b)); cargarMovs(); });
+  document.getElementById('mq').oninput = () => pintarMovs();
   document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => marcarPagado(F.lista.find(y => y.fila === Number(b.dataset.p))));
+}
+
+async function cargarMovs() {
+  const el = document.getElementById('ml'); if (!el) return;
+  try { S.cache.movs = await api('movimientos', { dias: S.cache.movDias || 7 }); pintarMovs(); }
+  catch (e) { el.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+const diaTxt = iso => { const hoy = new Date(); const f = new Date(iso + 'T12:00:00'); const d = Math.round((new Date(hoy.toDateString()) - new Date(f.toDateString())) / 864e5);
+  return d === 0 ? 'Hoy' : d === 1 ? 'Ayer' : f.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' }); };
+function pintarMovs() {
+  const el = document.getElementById('ml'); if (!el) return;
+  const q = (document.getElementById('mq')?.value || '').toLowerCase();
+  const L = (S.cache.movs || []).filter(x => !q || [x.persona, x.concepto, x.obra, x.folio].join(' ').toLowerCase().includes(q));
+  if (!L.length) { el.innerHTML = `<div class="empty">Nada capturado en este periodo</div>`; return; }
+  const dias = {}; L.forEach(x => (dias[x.fecha] = dias[x.fecha] || []).push(x));
+  el.innerHTML = Object.keys(dias).sort().reverse().map(f => {
+    const xs = dias[f]; const eg = xs.filter(x => x.tipo === 'Egreso').reduce((a, x) => a + x.importe, 0);
+    return `<div class="mut" style="display:flex;justify-content:space-between;margin:14px 4px 6px;font-weight:600;text-transform:capitalize"><span>${esc(diaTxt(f))} · ${xs.length}</span><span>${eg ? 'salió ' + mxn0(eg) : ''}</span></div>
+      <div class="card" style="padding:4px 14px">${xs.map(x => `<div class="kv" style="align-items:center">
+        <span style="flex:1;min-width:0;color:var(--ink)"><b style="font-weight:600">${esc(x.persona)}</b> · ${esc(x.concepto)}<br><span class="mut" style="font-size:12px">${esc(x.obra)} · ${esc(x.folio)}${x.tipo !== 'Egreso' ? ' · ' + esc(x.tipo) : ''}${x.foto ? ' · 📷' : ''}${String(x.origen || '').startsWith('Manual') ? ' · app' : ''}</span></span>
+        <span style="text-align:right"><span class="amt" style="${x.tipo === 'Ingreso' ? 'color:var(--ok)' : ''}">${x.tipo === 'Ingreso' ? '+' : ''}${mxn(x.importe)}</span><br>
+        <span class="chip ${String(x.revision || '').startsWith('RECHAZADO') ? 'wa' : x.pagado ? 'ok' : 'gr'}" style="font-size:10.5px">${String(x.revision || '').startsWith('RECHAZADO') ? 'Rechazado' : x.revision === 'POR APROBAR' ? 'Por aprobar' : x.pagado ? 'Pagado' : 'Por pagar'}</span></span></div>`).join('')}</div>`;
+  }).join('');
 }
 
 // pide una foto con la cámara y la regresa achicada
@@ -633,7 +663,7 @@ function marcarPagado(x) {
     if (!foto && !yaTiene) return toast('Falta la foto del recibo o la transferencia', true);
     if (fact && !uuid) return toast('Escribe el UUID de la factura', true);
     cerrarModal();
-    try { toast('Guardando…'); const F = await api('pagado', { fila: x.fila, folio: x.folio, uuid, foto }); toast('Pagado ✓'); if (S.inicio) S.inicio.fanny = F; vistaFanny(F); }
+    try { toast('Guardando…'); const F = await api('pagado', { fila: x.fila, folio: x.folio, uuid, foto }); toast('Pagado ✓'); if (S.inicio) S.inicio.fanny = F; S.cache.movs = null; vistaFanny(F); }
     catch (e) { toast(e.message, true); }
   };
 }
@@ -676,6 +706,9 @@ VISTAS.gasto = async () => {
     if (!d.obra || !d.categoria || !d.concepto || !d.persona) return toast('Falta proyecto, categoría, concepto o a quién', true);
     if (!(d.monto > 0)) return toast('Escribe el monto', true);
     if (!foto) return toast('Falta la foto del comprobante', true);
+    try { if (!S.cache.movs) S.cache.movs = await api('movimientos', { dias: 7 }); } catch {}
+    const dup = (S.cache.movs || []).find(m => m.tipo === 'Egreso' && Math.abs(m.importe - d.monto) < 0.01 && String(m.persona).toLowerCase() === d.persona.toLowerCase());
+    if (dup && !(await confirmar('¿Ya lo capturaste?', `Ya hay un pago a <b>${esc(dup.persona)}</b> por <b>${mxn(dup.importe)}</b> del ${esc(diaTxt(dup.fecha))} (${esc(dup.folio)} · ${esc(dup.concepto)}).<br><br>¿Es otro pago distinto?`, 'Sí, es otro'))) return;
     const nuevo = $('obs').value === '__n' && !C.obras.some(o => o.toLowerCase() === d.obra.toLowerCase());
     const pNueva = $('pes').value === '__n';
     const ok = await confirmar('¿Guardar gasto?', `${esc(d.persona)} · ${esc(d.concepto)}<br>${esc(d.obra)}${nuevo ? ' <b>(proyecto nuevo)</b>' : ''} · ${esc(d.categoria)}<br><br><b>${mxn(d.monto)}</b> ${esc(forma)}${d.monto > C.limite && S.yo.rol !== 'director' ? '<br><br>Quedará esperando la aprobación de Fernando.' : ''}`, 'Sí, guardar');
@@ -684,6 +717,7 @@ VISTAS.gasto = async () => {
       toast('Guardando…');
       const r = await api('gasto', d);
       if (nuevo || pNueva) S.cache.cat = null;
+      S.cache.movs = null;
       S.inicio = null;
       toast(r.porAprobar ? `${r.folio} enviado a Fernando ⏳` : `${r.folio} guardado ✓`);
       history.back();
