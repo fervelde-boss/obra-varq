@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d2b44">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Obra VA">
 <title>Obra · Velderrain Arquitectos</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -16,12 +16,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css?v=5">
 </head>
-<body>
+<body style="background:#f2f4f7">
 <div id="app">
   <div class="splash"><img src="img/logo-horizontal.png" alt="Velderrain Arquitectos"><div class="spin"></div></div>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="modal" class="modal" hidden></div>
+<script>
+window.addEventListener('error',function(e){var a=document.getElementById('app');if(a&&a.querySelector('.splash')){a.innerHTML='<div style="padding:32px 20px;font-family:Arial,sans-serif;color:#1d2b44;text-align:center"><h3>No se pudo abrir la app</h3><p style="font-size:13px;color:#64748b">'+(e.message||'Error')+'</p><button onclick="location.reload()" style="padding:12px 24px;border:0;border-radius:8px;background:#1d2b44;color:#fff;font-size:16px">Reintentar</button></div>';}});
+setTimeout(function(){var a=document.getElementById('app');if(a&&a.querySelector('.splash')&&!document.getElementById('cl-lento')){var d=document.createElement('p');d.id='cl-lento';d.style.cssText='text-align:center;font:13px Arial;color:#64748b';d.innerHTML='Tarda en cargar… <a href="#" onclick="location.reload();return false">reintentar</a>';a.appendChild(d);}},12000);
+</script>
 <script src="config.js?v=2"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="app.js?v=10"></script>
