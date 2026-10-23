@@ -196,6 +196,39 @@ async function pintar() {
   try { await v(S.params); }
   catch (e) { toast(e.message, true); }
 }
+// ---------- jalar hacia abajo para actualizar ----------
+(function () {
+  const ind = document.createElement('div');
+  ind.id = 'ptr'; ind.innerHTML = '<div class="ptr-c">↓</div>';
+  document.body.appendChild(ind);
+  let y0 = null, dy = 0, ocupado = false;
+  const UMBRAL = 70;
+  const enCampo = () => { const a = document.activeElement; return a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); };
+  window.addEventListener('touchstart', e => {
+    if (ocupado || !S.yo || !$modal.hidden || enCampo() || window.scrollY > 0 || e.touches.length !== 1) { y0 = null; return; }
+    y0 = e.touches[0].clientY; dy = 0;
+  }, { passive: true });
+  window.addEventListener('touchmove', e => {
+    if (y0 === null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 0 || window.scrollY > 0) { ind.style.transform = ''; ind.classList.remove('vis', 'listo'); return; }
+    const d = Math.min(dy * 0.5, 90);
+    ind.classList.add('vis');
+    ind.style.transform = `translate(-50%, ${d}px)`;
+    ind.classList.toggle('listo', dy > UMBRAL * 1.6);
+    ind.querySelector('.ptr-c').textContent = dy > UMBRAL * 1.6 ? '↻' : '↓';
+  }, { passive: true });
+  window.addEventListener('touchend', async () => {
+    if (y0 === null) return;
+    const ir = dy > UMBRAL * 1.6; y0 = null;
+    if (!ir) { ind.style.transform = ''; ind.classList.remove('vis', 'listo'); return; }
+    ocupado = true;
+    ind.classList.add('gira'); ind.style.transform = 'translate(-50%, 56px)';
+    try { S.inicio = null; await pintar(); toast('Actualizado'); }
+    catch (e) { toast(e.message, true); }
+    finally { ocupado = false; ind.classList.remove('vis', 'listo', 'gira'); ind.style.transform = ''; }
+  });
+})();
 async function refrescarInicio() { S.inicio = await api('inicio'); return S.inicio; }
 
 // ---------- vistas ----------
