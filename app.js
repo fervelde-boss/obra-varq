@@ -223,6 +223,7 @@ function inicioDirector(I) {
     ${tile('bl', mxn0(conFanny), `Con Fanny sin pagar (${fan.lista.length})`, 'fanny')}
     ${tile('ok', mxn0(fan.efectivo), 'Efectivo a llevar hoy', 'fanny')}
     ${tile('bl', mxn0(fan.fiscal || 0), 'Cuenta fiscal a cubrir hoy', 'fanny')}
+    ${fan.caja != null ? tile('ok', mxn0(fan.caja), `En caja de Fanny · después de pagar ${mxn0(fan.caja - conFanny)}`, 'fanny') : ''}
     ${tile('or', (I.gastos || []).length, `Gastos directos por revisar${(I.gastos || []).some(g => g.porAprobar) ? ' (hay por aprobar)' : ''}`, 'gastos')}
     <div class="tile bl" data-go="gasto"><div class="n">＋</div><div class="l">Registrar un gasto</div></div>
   </div>`;
@@ -676,6 +677,7 @@ function vistaFanny(F) {
       <div style="opacity:.75;font-size:13px">💵 Efectivo a llevar hoy</div>
       <div class="big">${mxn(F.efectivo)}</div>
       <div style="opacity:.75;font-size:13px;margin-top:8px">🏦 Cuenta fiscal a cubrir hoy: <b style="opacity:1">${mxn(F.fiscal || 0)}</b></div>
+      ${F.caja != null ? `<div style="opacity:.75;font-size:13px;margin-top:4px">💼 En caja: <b style="opacity:1">${mxn(F.caja)}</b> · después de pagar ${mxn(F.caja - tot)}</div>` : ''}
       <div style="opacity:.75;font-size:13px;margin-top:4px">${F.lista.length} pago${F.lista.length === 1 ? '' : 's'} pendiente${F.lista.length === 1 ? '' : 's'} · ${mxn0(tot)}</div>
     </div>
     <button class="btn pri full" id="ng" style="margin-bottom:6px">＋ Registrar gasto</button>
