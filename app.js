@@ -593,7 +593,8 @@ VISTAS.detalle = async (p) => {
       <div class="fld"><label>¿Cuánto le pagas?</label>
         <input class="inp money" id="pg" inputmode="decimal" value="${R.pago || (sugerido || '')}"></div>
       <div class="fld"><label>Forma</label><div class="seg" id="fm">
-        ${['Efectivo', 'Facturado'].map(f => `<button data-f="${f}" class="${forma === f ? 'on' : ''}">${f}</button>`).join('')}</div></div>
+        ${['Efectivo', 'Facturado', 'Ya pagado'].map(f => `<button data-f="${f}" class="${forma === f ? 'on' : ''}">${f}</button>`).join('')}</div>
+        <div class="mut" style="font-size:12px;margin-top:6px">"Ya pagado" = regularización: se cierra y se anota el pago en la hoja, pero <b>no</b> se manda nada a Fanny.</div></div>
       <div class="mut" id="sd"></div>
     </div>
     ${R.enviado ? `<button class="btn ghost full" id="rg">↩︎ Regresársela a Raúl para corregir</button>` : ''}
@@ -612,16 +613,17 @@ VISTAS.detalle = async (p) => {
   };
   document.getElementById('ok').onclick = async () => {
     const v = Math.round((Number(pg.value.replace(/[$,\s]/g, '')) || 0) * 100) / 100;
-    if (v > 0 && !forma) return toast('Elige Efectivo o Facturado', true);
+    if (v > 0 && !forma) return toast('Elige Efectivo, Facturado o Ya pagado', true);
+    const reg = forma === 'Ya pagado';
     const ok = await confirmar(`¿Cerrar ${R.folio}?`, `${esc(d.contratista)} · ${esc(d.obra)}<br><br>
       Pago autorizado: <b>${mxn(v)}</b>${v > 0 ? ` (${forma})` : ''}<br>Saldo después: <b>${mxn(saldoAntes - v)}</b><br><br>
-      ${v > 0 ? 'Se manda a Fanny para que lo pague.' : 'Sin pago: no se manda nada a Fanny.'}`, 'Sí, autorizar');
+      ${v > 0 ? (reg ? '<b>Regularización:</b> ya estaba pagado. Se anota en la hoja y <b>no</b> se manda a Fanny.' : 'Se manda a Fanny para que lo pague.') : 'Sin pago: no se manda nada a Fanny.'}`, 'Sí, autorizar');
     if (!ok) return;
     try {
-      const r = await api('cerrar', { tab: d.tab, pago: v, forma, folio: R.folio });
+      const r = await api('cerrar', { tab: d.tab, pago: v, forma: reg ? 'Efectivo' : forma, yaPagado: reg, folio: R.folio });
       S.inicio = null;
       abrirModal(`<div style="text-align:center"><div style="font-size:44px">✅</div><h3>${esc(r.folio)} cerrada</h3>
-        <p class="mut">${r.pago > 0 ? `${mxn(r.pago)} (${esc(r.forma)}) mandado a Fanny.` : 'Sin pago.'}<br>Siguiente: ${esc(r.siguiente)}</p>
+        <p class="mut">${r.pago > 0 ? (reg ? `${mxn(r.pago)} anotado como ya pagado (sin flujo).` : `${mxn(r.pago)} (${esc(r.forma)}) mandado a Fanny.`) : 'Sin pago.'}<br>Siguiente: ${esc(r.siguiente)}</p>
         <button class="btn pri full" id="x">Listo</button></div>`).querySelector('#x').onclick = () => { cerrarModal(); history.back(); };
     } catch (e) { toast(e.message, true); }
   };
