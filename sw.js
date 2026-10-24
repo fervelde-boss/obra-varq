@@ -2,7 +2,7 @@
 // Los datos siempre se piden en línea (hay buena señal en obra).
 // v12: nunca deja la pantalla en negro; si la red falla, abre la copia guardada
 // o muestra un aviso con botón para reintentar.
-const CACHE = 'obra-va-v15';
+const CACHE = 'obra-va-v16';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './img/logo-horizontal.png', './img/icon-192.png', './app.js', './app.css', './config.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}).then(() => self.skipWaiting()));
