@@ -251,12 +251,12 @@ function inicioDirector(I) {
   let h = `<div class="hello">${saludo()}, ${esc(S.yo.nombre)}</div>
   <p class="sub">${env.length || hit.length || (I.gastos || []).some(g => g.porAprobar) ? 'Tienes cosas por autorizar.' : 'Todo al corriente.'}</p>
   <div class="tiles">
+    ${fan.caja != null ? `<div class="tile ok" data-go="fanny" style="grid-column:1/-1"><div class="n">${mxn0(fan.caja)}</div><div class="l">💼 En caja de Fanny · después de pagar ${mxn0(fan.caja - conFanny)}</div></div>` : ''}
     ${tile('or', env.length, 'Estimaciones por autorizar', 'estimaciones')}
     ${tile('or', hit.length, 'Hitos de subcontrato por pagar', 'hitos')}
     ${tile('bl', mxn0(conFanny), `Con Fanny sin pagar (${fan.lista.length})`, 'fanny')}
     ${tile('ok', mxn0(fan.efectivo), 'Efectivo a llevar hoy', 'fanny')}
     ${tile('bl', mxn0(fan.fiscal || 0), 'Cuenta fiscal a cubrir hoy', 'fanny')}
-    ${fan.caja != null ? tile('ok', mxn0(fan.caja), `En caja de Fanny · después de pagar ${mxn0(fan.caja - conFanny)}`, 'fanny') : ''}
     ${tile('or', (I.gastos || []).length, `Gastos directos por revisar${(I.gastos || []).some(g => g.porAprobar) ? ' (hay por aprobar)' : ''}`, 'gastos')}
     <div class="tile bl" data-go="gasto"><div class="n">＋</div><div class="l">Registrar un gasto</div></div>
   </div>`;
