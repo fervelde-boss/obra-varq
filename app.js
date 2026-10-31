@@ -257,6 +257,7 @@ function inicioDirector(I) {
     ${tile('bl', mxn0(conFanny), `Con Fanny sin pagar (${fan.lista.length})`, 'fanny')}
     ${tile('ok', mxn0(fan.efectivo), 'Efectivo a llevar hoy', 'fanny')}
     ${tile('bl', mxn0(fan.fiscal || 0), 'Cuenta fiscal a cubrir hoy', 'fanny')}
+    ${fan.prestamos != null ? tile('bl', mxn0(fan.prestamos), '🤝 Préstamos de socio por devolver', 'fanny') : ''}
     ${tile('or', (I.gastos || []).length, `Gastos directos por revisar${(I.gastos || []).some(g => g.porAprobar) ? ' (hay por aprobar)' : ''}`, 'gastos')}
     <div class="tile bl" data-go="gasto"><div class="n">＋</div><div class="l">Registrar un gasto</div></div>
   </div>`;
