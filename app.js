@@ -248,24 +248,25 @@ function inicioDirector(I) {
   const conFanny = fan.lista.reduce((a, x) => a + x.importe, 0);
   const hit = I.hitosPorAutorizar || [];
   const tile = (cls, n, l, r) => `<div class="tile ${cls} ${n ? '' : 'zero'}" data-go="${r}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  const sd = fan.saldos;
+  const ofi = sd ? sd.oficina : fan.caja;
   let h = `<div class="hello">${saludo()}, ${esc(S.yo.nombre)}</div>
   <p class="sub">${env.length || hit.length || (I.gastos || []).some(g => g.porAprobar) ? 'Tienes cosas por autorizar.' : 'Todo al corriente.'}</p>
-  <div class="tiles">
-    ${fan.saldos ? `<div class="tile ok" data-go="fanny" style="grid-column:1/-1"><div class="n">${mxn0(fan.saldos.total)}</div><div class="l">💰 Total disponible (efectivo + banco)</div></div>
-    <div class="tiles3" style="grid-column:1/-1">
-      <div class="tile bl" data-go="fanny"><div class="n sm">${mxn0(fan.saldos.banco)}</div><div class="l">🏦 Banco (cuenta fiscal)</div></div>
-      <div class="tile ok" data-go="fanny"><div class="n sm">${mxn0(fan.saldos.oficina)}</div><div class="l">💼 Caja de oficina · después de pagar ${mxn0(fan.saldos.oficina - conFanny)}</div></div>
-      <div class="tile ok" data-go="fanny"><div class="n sm">${mxn0(fan.saldos.resguardo)}</div><div class="l">🏠 Resguardo en casa</div></div>
-    </div>` : fan.caja != null ? `<div class="tile ok" data-go="fanny" style="grid-column:1/-1"><div class="n">${mxn0(fan.caja)}</div><div class="l">💼 En caja de Fanny · después de pagar ${mxn0(fan.caja - conFanny)}</div></div>` : ''}
-    ${tile('or', env.length, 'Estimaciones por autorizar', 'estimaciones')}
-    ${tile('or', hit.length, 'Hitos de subcontrato por pagar', 'hitos')}
+  <div class="tiles mini">
+    ${sd ? `<div class="tile ok big" data-go="fanny"><div class="n">${mxn0(sd.total)}</div><div class="l">💰 Total disponible (efectivo + banco)</div></div>` : ''}
+    ${sd ? tile('bl', mxn0(sd.banco), '🏦 Banco fiscal', 'fanny') : ''}
+    ${ofi != null ? tile('ok', mxn0(ofi), `💼 Caja oficina<br>después ${mxn0(ofi - conFanny)}`, 'fanny') : ''}
+    ${sd ? tile('ok', mxn0(sd.resguardo), '🏠 Resguardo', 'fanny') : ''}
+    ${tile('ok', mxn0(fan.efectivo), 'Llevar hoy', 'fanny')}
     ${tile('bl', mxn0(conFanny), `Con Fanny sin pagar (${fan.lista.length})`, 'fanny')}
-    ${tile('ok', mxn0(fan.efectivo), 'Efectivo a llevar hoy', 'fanny')}
-    ${tile('bl', mxn0(fan.fiscal || 0), 'Cuenta fiscal a cubrir hoy', 'fanny')}
-    ${fan.prestamos != null ? tile('bl', mxn0(fan.prestamos), '🤝 Préstamos de socio por devolver', 'fanny') : ''}
-    ${tile('or', (I.gastos || []).length, `Gastos directos por revisar${(I.gastos || []).some(g => g.porAprobar) ? ' (hay por aprobar)' : ''}`, 'gastos')}
-    <div class="tile bl" data-go="gasto"><div class="n">＋</div><div class="l">Registrar un gasto</div></div>
+    ${tile('bl', mxn0(fan.fiscal || 0), 'Fiscal a cubrir', 'fanny')}
+    ${fan.prestamos != null ? tile('bl', mxn0(fan.prestamos), '🤝 Préstamos socio', 'fanny') : ''}
+    ${tile('or', (I.gastos || []).length, `Gastos por revisar${(I.gastos || []).some(g => g.porAprobar) ? ' ⚠️' : ''}`, 'gastos')}
+    <div class="tile bl" data-go="gasto"><div class="n">＋</div><div class="l">Registrar gasto</div></div>
+    ${tile('or', env.length, 'Estimaciones por autorizar', 'estimaciones')}
+    ${tile('or', hit.length, 'Hitos por pagar', 'hitos')}
   </div>`;
+  h += `<h2>Obras</h2>` + resumenObras(I.hojas);
   if (env.length) {
     h += `<h2>Raúl ya envió</h2>` + env.map(cardHoja).join('');
   }
@@ -274,7 +275,6 @@ function inicioDirector(I) {
       <div class="ttl">${esc(x.proveedor || x.codigo)}</div><div class="mut">${esc(x.hito)} · ${pct(x.pctPago)}</div></div>
       <div class="amt">${mxn(x.monto)}</div></div></div>`).join('');
   }
-  h += `<h2>Obras</h2>` + resumenObras(I.hojas);
   marco('Obra VA', 'Velderrain Arquitectos', h);
   enlazar();
 }
