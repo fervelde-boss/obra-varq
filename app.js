@@ -251,7 +251,12 @@ function inicioDirector(I) {
   let h = `<div class="hello">${saludo()}, ${esc(S.yo.nombre)}</div>
   <p class="sub">${env.length || hit.length || (I.gastos || []).some(g => g.porAprobar) ? 'Tienes cosas por autorizar.' : 'Todo al corriente.'}</p>
   <div class="tiles">
-    ${fan.caja != null ? `<div class="tile ok" data-go="fanny" style="grid-column:1/-1"><div class="n">${mxn0(fan.caja)}</div><div class="l">💼 En caja de Fanny · después de pagar ${mxn0(fan.caja - conFanny)}</div></div>` : ''}
+    ${fan.saldos ? `<div class="tile ok" data-go="fanny" style="grid-column:1/-1"><div class="n">${mxn0(fan.saldos.total)}</div><div class="l">💰 Total disponible (efectivo + banco)</div></div>
+    <div class="tiles3" style="grid-column:1/-1">
+      <div class="tile bl" data-go="fanny"><div class="n sm">${mxn0(fan.saldos.banco)}</div><div class="l">🏦 Banco (cuenta fiscal)</div></div>
+      <div class="tile ok" data-go="fanny"><div class="n sm">${mxn0(fan.saldos.oficina)}</div><div class="l">💼 Caja de oficina · después de pagar ${mxn0(fan.saldos.oficina - conFanny)}</div></div>
+      <div class="tile ok" data-go="fanny"><div class="n sm">${mxn0(fan.saldos.resguardo)}</div><div class="l">🏠 Resguardo en casa</div></div>
+    </div>` : fan.caja != null ? `<div class="tile ok" data-go="fanny" style="grid-column:1/-1"><div class="n">${mxn0(fan.caja)}</div><div class="l">💼 En caja de Fanny · después de pagar ${mxn0(fan.caja - conFanny)}</div></div>` : ''}
     ${tile('or', env.length, 'Estimaciones por autorizar', 'estimaciones')}
     ${tile('or', hit.length, 'Hitos de subcontrato por pagar', 'hitos')}
     ${tile('bl', mxn0(conFanny), `Con Fanny sin pagar (${fan.lista.length})`, 'fanny')}

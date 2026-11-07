@@ -71,6 +71,9 @@ h2:first-child{margin-top:4px}
 .tile.or{border-left-color:var(--orange)} .tile.or .n{color:var(--orange-2)}
 .tile.bl{border-left-color:var(--blue)} .tile.ok{border-left-color:var(--ok)}
 .tile.zero{opacity:.6}
+.tiles3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile .n.sm{font-size:17px}
+@media(max-width:380px){.tiles3{grid-template-columns:1fr 1fr}.tiles3 .tile:first-child{grid-column:1/-1}}
 .chip{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
 .chip.or{background:var(--orange-soft);color:var(--orange-2)}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}
